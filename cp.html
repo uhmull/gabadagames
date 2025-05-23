@@ -1,1 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Ceramic Fracture Toughness Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        .control-panel {
+            width: 300px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid #444;
+        }
+        .simulation-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            border: 2px solid #444;
+            background: #000;
+            cursor: crosshair;
+        }
+        .stats-panel {
+            height: 150px;
+            background: rgba(0,0,0,0.9);
+            padding: 15px;
+            border-top: 2px solid #444;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        .stat-box {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .control-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        .control-group h3 {
+            margin: 0 0 15px 0;
+            color: #4CAF50;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+        .value-display {
+            font-size: 11px;
+            color: #aaa;
+            text-align: right;
+        }
+        button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px 0;
+            width: 100%;
+            font-weight: bold;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #45a049, #4CAF50);
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .legend {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 3px 0;
+        }
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            margin-right: 8px;
+            border: 1px solid #666;
+        }
+        .mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        .mode-btn {
+            padding: 8px;
+            font-size: 11px;
+        }
+        .mode-btn.active {
+            background: linear-gradient(45deg, #FF6B6B, #FF5252);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="control-panel">
+            <h2>Fracture Simulation Controls</h2>
+            
+            <div class="control-group">
+                <h3>Material Properties</h3>
+                <div class="slider-container">
+                    <label>Young's Modulus (GPa)</label>
+                    <input type="range" id="youngsModulus" min="50" max="500" value="300" step="10">
+                    <div class="value-display" id="youngsModulusValue">300 GPa</div>
+                </div>
+                <div class="slider-container">
+                    <label>Poisson's Ratio</label>
+                    <input type="range" id="poissonRatio" min="0.1" max="0.4" value="0.25" step="0.01">
+                    <div class="value-display" id="poissonRatioValue">0.25</div>
+                </div>
+                <div class="slider-container">
+                    <label>Fracture Toughness (MPa·m^0.5)</label>
+                    <input type="range" id="fractureToughness" min="1" max="15" value="5" step="0.5">
+                    <div class="value-display" id="fractureToughnessValue">5.0 MPa·m^0.5</div>
+                </div>
+                <div class="slider-container">
+                    <label>Grain Size (μm)</label>
+                    <input type="range" id="grainSize" min="0.5" max="50" value="10" step="0.5">
+                    <div class="value-display" id="grainSizeValue">10.0 μm</div>
+                </div>
+            </div>
 
+            <div class="control-group">
+                <h3>Loading Conditions</h3>
+                <div class="slider-container">
+                    <label>Applied Stress (MPa)</label>
+                    <input type="range" id="appliedStress" min="10" max="500" value="100" step="10">
+                    <div class="value-display" id="appliedStressValue">100 MPa</div>
+                </div>
+                <div class="slider-container">
+                    <label>Loading Rate (MPa/s)</label>
+                    <input type="range" id="loadingRate" min="0.1" max="10" value="1" step="0.1">
+                    <div class="value-display" id="loadingRateValue">1.0 MPa/s</div>
+                </div>
+                <div class="slider-container">
+                    <label>Temperature (°C)</label>
+                    <input type="range" id="temperature" min="20" max="1500" value="25" step="25">
+                    <div class="value-display" id="temperatureValue">25 °C</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Simulation Mode</h3>
+                <div class="mode-selector">
+                    <button class="mode-btn active" id="modeI">Mode I</button>
+                    <button class="mode-btn" id="modeII">Mode II</button>
+                    <button class="mode-btn" id="mixedMode">Mixed</button>
+                    <button class="mode-btn" id="fatigue">Fatigue</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Microstructure</h3>
+                <div class="slider-container">
+                    <label>Porosity (%)</label>
+                    <input type="range" id="porosity" min="0" max="30" value="5" step="1">
+                    <div class="value-display" id="porosityValue">5%</div>
+                </div>
+                <div class="slider-container">
+                    <label>Inclusion Density</label>
+                    <input type="range" id="inclusionDensity" min="0" max="0.2" value="0.05" step="0.01">
+                    <div class="value-display" id="inclusionDensityValue">0.05</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Controls</h3>
+                <button id="startBtn">Start Simulation</button>
+                <button id="pauseBtn" disabled>Pause</button>
+                <button id="resetBtn">Reset</button>
+                <button id="addCrackBtn">Add Initial Crack</button>
+            </div>
+        </div>
+
+        <div class="simulation-area">
+            <div class="canvas-container">
+                <canvas id="simulationCanvas" width="800" height="600"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #FF0000;"></div>
+                        <span>High Stress (>80% yield)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #FFFF00;"></div>
+                        <span>Medium Stress (40-80%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #00FF00;"></div>
+                        <span>Low Stress (<40%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #000000;"></div>
+                        <span>Cracked Material</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #8B4513;"></div>
+                        <span>Inclusions</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-panel">
+                <div class="stat-box">
+                    <div class="stat-value" id="stressIntensity">0.0</div>
+                    <div>Stress Intensity Factor<br>(MPa·m^0.5)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="crackLength">0.0</div>
+                    <div>Crack Length<br>(mm)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="jIntegral">0.0</div>
+                    <div>J-Integral<br>(J/m²)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="energyRelease">0.0</div>
+                    <div>Energy Release Rate<br>(J/m²)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="simulationTime">0.0</div>
+                    <div>Simulation Time<br>(seconds)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="failureRisk">0%</div>
+                    <div>Failure Risk<br>Assessment</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class CeramicFractureSimulation {
+            constructor() {
+                this.canvas = document.getElementById('simulationCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.width = this.canvas.width;
+                this.height = this.canvas.height;
+                
+                // Simulation state
+                this.isRunning = false;
+                this.time = 0;
+                this.dt = 0.01;
+                
+                // Material grid
+                this.gridSize = 4;
+                this.gridWidth = Math.floor(this.width / this.gridSize);
+                this.gridHeight = Math.floor(this.height / this.gridSize);
+                
+                // Initialize material properties
+                this.initializeMaterial();
+                this.initializeCracks();
+                this.initializeMicrostructure();
+                
+                // Simulation parameters
+                this.currentMode = 'modeI';
+                this.appliedLoad = 0;
+                
+                this.setupEventListeners();
+                this.animationId = null;
+                
+                this.render();
+            }
+            
+            initializeMaterial() {
+                this.stressField = Array(this.gridHeight).fill().map(() => Array(this.gridWidth).fill(0));
+                this.strainField = Array(this.gridHeight).fill().map(() => Array(this.gridWidth).fill(0));
+                this.damageField = Array(this.gridHeight).fill().map(() => Array(this.gridWidth).fill(0));
+                this.materialState = Array(this.gridHeight).fill().map(() => Array(this.gridWidth).fill('intact'));
+                this.grainBoundaries = Array(this.gridHeight).fill().map(() => Array(this.gridWidth).fill(false));
+                
+                // Generate grain structure
+                this.generateGrainStructure();
+            }
+            
+            generateGrainStructure() {
+                const grainSize = parseFloat(document.getElementById('grainSize').value);
+                const grainPixels = Math.max(2, Math.floor(grainSize / 2));
+                
+                for (let y = 0; y < this.gridHeight; y += grainPixels) {
+                    for (let x = 0; x < this.gridWidth; x += grainPixels) {
+                        // Create grain boundaries
+                        if (Math.random() < 0.3) {
+                            for (let dy = 0; dy < grainPixels && y + dy < this.gridHeight; dy++) {
+                                for (let dx = 0; dx < grainPixels && x + dx < this.gridWidth; dx++) {
+                                    if (dx === 0 || dy === 0 || dx === grainPixels - 1 || dy === grainPixels - 1) {
+                                        this.grainBoundaries[y + dy][x + dx] = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            initializeCracks() {
+                this.cracks = [];
+                this.crackTips = [];
+            }
+            
+            initializeMicrostructure() {
+                this.inclusions = [];
+                this.pores = [];
+                
+                const inclusionDensity = parseFloat(document.getElementById('inclusionDensity').value);
+                const porosity = parseFloat(document.getElementById('porosity').value) / 100;
+                
+                // Generate inclusions
+                const numInclusions = Math.floor(inclusionDensity * this.gridWidth * this.gridHeight / 100);
+                for (let i = 0; i < numInclusions; i++) {
+                    this.inclusions.push({
+                        x: Math.random() * this.gridWidth,
+                        y: Math.random() * this.gridHeight,
+                        radius: 2 + Math.random() * 4,
+                        stiffness: 0.5 + Math.random() * 1.5
+                    });
+                }
+                
+                // Generate pores
+                const numPores = Math.floor(porosity * this.gridWidth * this.gridHeight / 20);
+                for (let i = 0; i < numPores; i++) {
+                    this.pores.push({
+                        x: Math.random() * this.gridWidth,
+                        y: Math.random() * this.gridHeight,
+                        radius: 1 + Math.random() * 3
+                    });
+                }
+            }
+            
+            addInitialCrack() {
+                const centerX = Math.floor(this.gridWidth / 4);
+                const centerY = Math.floor(this.gridHeight / 2);
+                const crackLength = 20;
+                
+                const crack = {
+                    path: [],
+                    tips: []
+                };
+                
+                // Create horizontal crack
+                for (let i = 0; i < crackLength; i++) {
+                    const x = centerX + i;
+                    const y = centerY + Math.floor((Math.random() - 0.5) * 3);
+                    
+                    if (x < this.gridWidth && y >= 0 && y < this.gridHeight) {
+                        crack.path.push({x, y});
+                        this.materialState[y][x] = 'cracked';
+                        this.damageField[y][x] = 1.0;
+                    }
+                }
+                
+                // Add crack tips
+                crack.tips.push({
+                    x: centerX + crackLength - 1,
+                    y: centerY,
+                    angle: 0,
+                    velocity: 0
+                });
+                
+                this.cracks.push(crack);
+                this.crackTips.push(...crack.tips);
+            }
+            
+            calculateStressField() {
+                const E = parseFloat(document.getElementById('youngsModulus').value) * 1000; // Convert to MPa
+                const nu = parseFloat(document.getElementById('poissonRatio').value);
+                const appliedStress = this.appliedLoad;
+                const temp = parseFloat(document.getElementById('temperature').value);
+                
+                // Temperature effect on modulus
+                const tempFactor = 1 - (temp - 25) * 0.0001;
+                const effectiveE = E * tempFactor;
+                
+                for (let y = 0; y < this.gridHeight; y++) {
+                    for (let x = 0; x < this.gridWidth; x++) {
+                        if (this.materialState[y][x] === 'cracked') {
+                            this.stressField[y][x] = 0;
+                            continue;
+                        }
+                        
+                        let localStress = appliedStress;
+                        
+                        // Stress concentration around crack tips
+                        for (let tip of this.crackTips) {
+                            const dx = x - tip.x;
+                            const dy = y - tip.y;
+                            const r = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (r < 20 && r > 0.1) {
+                                const theta = Math.atan2(dy, dx) - tip.angle;
+                                const K = this.calculateStressIntensityFactor(tip);
+                                
+                                // Mode I stress field
+                                const stressConcentration = K / Math.sqrt(2 * Math.PI * r) * 
+                                    Math.cos(theta/2) * (1 + Math.sin(theta/2) * Math.sin(3*theta/2));
+                                
+                                localStress += Math.abs(stressConcentration);
+                            }
+                        }
+                        
+                        // Include microstructural effects
+                        localStress *= this.getMicrostructuralFactor(x, y);
+                        
+                        // Grain boundary effects
+                        if (this.grainBoundaries[y][x]) {
+                            localStress *= 0.8; // Grain boundaries can arrest cracks
+                        }
+                        
+                        this.stressField[y][x] = localStress;
+                        this.strainField[y][x] = localStress / effectiveE;
+                    }
+                }
+            }
+            
+            getMicrostructuralFactor(x, y) {
+                let factor = 1.0;
+                
+                // Check for inclusions
+                for (let inclusion of this.inclusions) {
+                    const dx = x - inclusion.x;
+                    const dy = y - inclusion.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < inclusion.radius) {
+                        factor *= inclusion.stiffness;
+                    } else if (dist < inclusion.radius * 2) {
+                        // Stress concentration around inclusions
+                        factor *= 1 + 0.5 / Math.max(0.1, dist - inclusion.radius);
+                    }
+                }
+                
+                // Check for pores
+                for (let pore of this.pores) {
+                    const dx = x - pore.x;
+                    const dy = y - pore.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < pore.radius) {
+                        factor = 0; // No load bearing in pores
+                    } else if (dist < pore.radius * 3) {
+                        // High stress concentration around pores
+                        factor *= 1 + 2.0 / Math.max(0.1, dist - pore.radius);
+                    }
+                }
+                
+                return Math.max(0, Math.min(3.0, factor));
+            }
+            
+            calculateStressIntensityFactor(crackTip) {
+                const sigma = this.appliedLoad;
+                const a = this.getCrackLength(crackTip);
+                const Y = 1.12; // Geometry factor for edge crack
+                
+                return Y * sigma * Math.sqrt(Math.PI * a / 1000); // Convert to proper units
+            }
+            
+            getCrackLength(crackTip) {
+                let maxLength = 0;
+                
+                for (let crack of this.cracks) {
+                    if (crack.tips.includes(crackTip)) {
+                        maxLength = Math.max(maxLength, crack.path.length * this.gridSize / 1000); // Convert to meters
+                    }
+                }
+                
+                return maxLength;
+            }
+            
+            propagateCracks() {
+                const Kc = parseFloat(document.getElementById('fractureToughness').value);
+                const loadingRate = parseFloat(document.getElementById('loadingRate').value);
+                
+                for (let i = 0; i < this.crackTips.length; i++) {
+                    const tip = this.crackTips[i];
+                    const K = this.calculateStressIntensityFactor(tip);
+                    
+                    // Check if crack should propagate
+                    if (K > Kc) {
+                        const crack = this.findCrackForTip(tip);
+                        if (crack) {
+                            this.propagateCrack(crack, tip, K / Kc);
+                        }
+                    }
+                    
+                    // Update crack tip velocity based on loading rate
+                    tip.velocity = Math.min(100, tip.velocity + loadingRate * this.dt);
+                }
+            }
+            
+            findCrackForTip(tip) {
+                for (let crack of this.cracks) {
+                    if (crack.tips.includes(tip)) {
+                        return crack;
+                    }
+                }
+                return null;
+            }
+            
+            propagateCrack(crack, tip, overstress) {
+                const propagationProbability = Math.min(0.1, overstress * 0.02);
+                
+                if (Math.random() < propagationProbability) {
+                    // Determine propagation direction
+                    let angle = tip.angle;
+                    
+                    // Add some randomness and microstructural influence
+                    angle += (Math.random() - 0.5) * 0.2;
+                    
+                    // Check for grain boundary deflection
+                    const nextX = Math.round(tip.x + Math.cos(angle));
+                    const nextY = Math.round(tip.y + Math.sin(angle));
+                    
+                    if (nextX >= 0 && nextX < this.gridWidth && nextY >= 0 && nextY < this.gridHeight) {
+                        if (this.grainBoundaries[nextY][nextX] && Math.random() < 0.7) {
+                            // Crack deflection at grain boundary
+                            angle += (Math.random() - 0.5) * Math.PI / 4;
+                        }
+                        
+                        const newX = Math.round(tip.x + Math.cos(angle));
+                        const newY = Math.round(tip.y + Math.sin(angle));
+                        
+                        if (newX >= 0 && newX < this.gridWidth && newY >= 0 && newY < this.gridHeight &&
+                            this.materialState[newY][newX] !== 'cracked') {
+                            
+                            crack.path.push({x: newX, y: newY});
+                            this.materialState[newY][newX] = 'cracked';
+                            this.damageField[newY][newX] = 1.0;
+                            
+                            // Update crack tip position
+                            tip.x = newX;
+                            tip.y = newY;
+                            tip.angle = angle;
+                        }
+                    }
+                }
+            }
+            
+            calculateJIntegral() {
+                if (this.crackTips.length === 0) return 0;
+                
+                const tip = this.crackTips[0];
+                const E = parseFloat(document.getElementById('youngsModulus').value) * 1000;
+                const nu = parseFloat(document.getElementById('poissonRatio').value);
+                const K = this.calculateStressIntensityFactor(tip);
+                
+                // Plane stress assumption
+                return (K * K) / E;
+            }
+            
+            calculateEnergyReleaseRate() {
+                return this.calculateJIntegral(); // For elastic materials, G = J
+            }
+            
+            assessFailureRisk() {
+                const K = this.crackTips.length > 0 ? this.calculateStressIntensityFactor(this.crackTips[0]) : 0;
+                const Kc = parseFloat(document.getElementById('fractureToughness').value);
+                
+                return Math.min(100, (K / Kc) * 100);
+            }
+            
+            updateSimulation() {
+                if (!this.isRunning) return;
+                
+                this.time += this.dt;
+                
+                // Update applied load
+                const targetStress = parseFloat(document.getElementById('appliedStress').value);
+                const loadingRate = parseFloat(document.getElementById('loadingRate').value);
+                
+                if (this.appliedLoad < targetStress) {
+                    this.appliedLoad = Math.min(targetStress, this.appliedLoad + loadingRate * this.dt);
+                }
+                
+                // Calculate stress fields
+                this.calculateStressField();
+                
+                // Propagate cracks
+                this.propagateCracks();
+                
+                // Update statistics
+                this.updateStatistics();
+                
+                // Check for catastroph
